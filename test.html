@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://cdn.plot.ly/plotly-2.11.1.min.js"></script>
+    <script src="plotly-locale-ru.js"></script>
+    <link rel="stylesheet" href="test.css" />
+
+    <script>
+      Plotly.setPlotConfig({ locale: "ru" });
+    </script>
+  </head>
+  <body>
+    <div>
+      <div class="container">
+        <form id="limit">
+          <label class="title">Установить план (тыс.м)</label>
+          <input min="0" type="number" placeholder="..." id="limitVal" />
+          <button type="submit" id="limitBtn">Set limit</button>
+        </form>
+        <form id="form">
+          <label class="title">Добавить точку на график</label>
+
+          <div class="point">
+            <label>Добыто(тыс.м)</label>
+
+            <input id="data" type="number" min="0" placeholder="0" />
+          </div>
+
+          <div class="point">
+            <label>К моменту</label> <input id="time" type="time" />
+          </div>
+
+          <button id="addButton" type="submit">Click to add</button>
+        </form>
+      </div>
+      <div style="display: flex; justify-content: center">
+        <div id="tester" style="width: 95%; height: auto"></div>
+      </div>
+    </div>
+  </body>
+  <script>
+    let TESETER = document.getElementById("tester");
+
+    let topLimit = document.getElementById("limit");
+    let form = document.getElementById("form");
+
+    let options = {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+
+    let actTime = new Date();
+    let startTime = new Date(
+      actTime.getFullYear(),
+      actTime.getMonth(),
+      actTime.getDate(),
+      0
+    );
+
+    console.log(typeof startTime.toLocaleDateString("ru", options));
+
+    let altStartTime = new Date(
+      actTime.getFullYear(),
+      actTime.getMonth(),
+      actTime.getDate() - 1,
+      23
+    );
+
+    let altLastTime = new Date(
+      actTime.getFullYear(),
+      actTime.getMonth(),
+      actTime.getDate() + 1,
+      1
+    );
+
+    let realLastTime = new Date(
+      actTime.getFullYear(),
+      actTime.getMonth(),
+      actTime.getDate(),
+      23,
+      59
+    );
+
+    let lastTime = new Date(
+      actTime.getFullYear(),
+      actTime.getMonth(),
+      actTime.getDate(),
+      24
+    );
+
+    let limit = {
+      x: [startTime, realLastTime],
+      y: [],
+      mode: "lines",
+      type: "scatter",
+
+      fill: "tozeroy",
+      line: {
+        color: "rgb(47, 129, 210)",
+      },
+      fillcolor: "rgba(47, 129, 210, 0.2)",
+      name: "План добычи",
+      fillpattern: {
+        fillmode: "overlay",
+      },
+    };
+    let xarr = [];
+    let yarr = [];
+
+    let speed = {
+      x: [],
+      y: [],
+      type: "bar",
+      marker: {
+        color: "rgb(45, 206, 9)",
+      },
+      name: "Добыто (час)",
+    };
+
+    let done = {
+      mode: "lines",
+      x: [],
+      y: [],
+      total: 9,
+      items: [],
+      type: "scatter",
+      line: {
+        color: "rgb(136, 7, 112)",
+      },
+      name: "Добыто (сутки)",
+    };
+
+    let expect = {
+      x: [],
+      y: [],
+      mode: "lines",
+
+      line: {
+        dash: "dot",
+        width: 6,
+      },
+      name: "Прогноз добычи",
+    };
+
+    let traces = [limit, speed, expect, done];
+
+    traces.map((trace) => {
+      let color = "#000";
+      if (!trace.line) {
+        color = trace.marker.color;
+      } else {
+        color = trace.line.color;
+      }
+      (trace.hoverlabel = {
+        bgcolor: "#FFF",
+        bordercolor: color,
+        font: {
+          color: "#000",
+        },
+      }),
+        (trace.hovertemplate =
+          `%{x|%A, %B %d. %H:%M}` +
+          `<br>` +
+          `${trace.name}: <b>%{y:.0f}</b>%{yaxis.ticksuffix}<br>`);
+    });
+
+    let layout = {
+      hovermode: "closest",
+      title: "Скважина 101",
+      xaxis: {
+        range: [altStartTime, altLastTime],
+        showticklabels: true,
+        tickwidth: 0.5,
+        ticklen: 6,
+        dtick: (lastTime - startTime) / 12,
+        rangemode: "tozero",
+      },
+      yaxis: {
+        autorange: true,
+        ticksuffix: " тыс.м",
+        automargin: true,
+        rangemode: "tozero",
+        title: {
+          text: "Дебит",
+          standoff: 5,
+        },
+      },
+      legend: { orientation: "h", x: 0.5, xanchor: "center", y: -0.25 },
+      annotations: [],
+    };
+
+    let limitInput = document.getElementById("limitVal");
+
+    topLimit.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      let btn = document.getElementById("limitBtn");
+      console.log(btn.classList);
+      btn.classList.add("pressed_btn");
+      limitVal = parseInt(limitInput.value);
+      limit.y = [limitVal, limitVal];
+      if (expect.y[1] && expect.y[1] < limitVal) {
+        expect.line.color = "red";
+      } else {
+        expect.line.color = "green";
+      }
+      setTimeout(() => {
+        btn.classList.remove("pressed_btn");
+      }, 1000);
+
+      Plotly.newPlot(TESETER, [limit, speed, done, expect], layout);
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      let btn = document.getElementById("addButton");
+      btn.classList.add("pressed_btn");
+      let timer = document.getElementById("time");
+      let dataInput = document.getElementById("data");
+      let time = timer.value;
+      let amount = parseInt(dataInput.value);
+      let hour = parseInt(time.slice(0, 2));
+      let mins = parseInt(time.slice(3));
+      let newDate = new Date(
+        actTime.getFullYear(),
+        actTime.getMonth(),
+        actTime.getDate(),
+        hour,
+        mins
+      );
+      setTimeout(() => {
+        timer.value = "";
+        dataInput.value = "";
+        btn.classList.remove("pressed_btn");
+      }, 500);
+
+      if (speed.x.length == 0) {
+        for (let i = 0; i < 24; i++) {
+          let time = new Date(
+            actTime.getFullYear(),
+            actTime.getMonth(),
+            actTime.getDate(),
+            i
+          );
+          console.log(time.getDay());
+          xarr.push(time);
+          yarr.push(0);
+        }
+        speed.x = xarr;
+        speed.y = yarr;
+      }
+      if (amount && hour) {
+        yarr[hour] += amount;
+        done.items.push({ newDate, amount });
+      }
+      let sorted = done.items.sort((a, b) => a.newDate - b.newDate);
+      let total = 0;
+      let doneDates = [];
+      let doneValues = sorted.map((a) => {
+        doneDates.push(a.newDate);
+        total += a.amount;
+        return total;
+      });
+      done.x = doneDates;
+      done.y = doneValues;
+
+      if (done.items.length > 1) {
+        let startX = doneDates[doneDates.length - 1];
+        let startY = doneValues[doneValues.length - 1];
+        let k =
+          (startY - doneValues[doneValues.length - 2]) /
+          (doneDates[doneValues.length - 1] - doneDates[doneValues.length - 2]);
+        let lastY = startY + k * (realLastTime - startX);
+
+        expect.x = [startX, realLastTime];
+        expect.y = [startY, lastY];
+
+        if (expect.y[1] && expect.y[1] < limit.y[0]) {
+          expect.line.color = "red";
+        } else {
+          expect.line.color = "green";
+        }
+        layout.annotations = [
+          {
+            x: done.x[done.x.length - 1],
+            y: done.y[done.y.length - 1] + expect.y[1] * 0.1,
+            xref: "x",
+            yref: "y",
+            text: `<b>${done.y[done.y.length - 1]}</b>`,
+            showarrow: false,
+          },
+          {
+            x: expect.x[1],
+            y: expect.y[1] + expect.y[1] * 0.1,
+            xref: "x",
+            yref: "y",
+            text: `<b>${Math.round(expect.y[1])}</b>`,
+            showarrow: false,
+          },
+        ];
+      }
+
+      Plotly.newPlot(TESETER, traces, layout);
+    });
+
+    window.addEventListener("resize", () => {
+      Plotly.newPlot(TESETER, traces, layout);
+    });
+
+    Plotly.newPlot(TESETER, traces, layout, { locale: "ru" });
+  </script>
+</html>
